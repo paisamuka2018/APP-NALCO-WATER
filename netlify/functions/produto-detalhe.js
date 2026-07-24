@@ -9,11 +9,24 @@ export default async (req) => {
     const produto = db.produtos.find(p => p.id === produtoId);
     if (!produto) return json({ erro: 'Produto não encontrado' }, 404);
 
-    const historico = db.lancamentos
+    const lancamentosOrdenados = db.lancamentos
       .filter(l => l.produto_id === produtoId)
       .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora))
-      .slice(-8)
-      .map(l => ({ data: l.data_hora, estoque_kg: null, peso_calculado_kg: l.peso_calculado_kg }));
+      .slice(-12);
+
+    const historico = lancamentosOrdenados.map((l, i) => {
+      const anterior = i > 0 ? lancamentosOrdenados[i - 1] : null;
+      let consumo_kg = null;
+      if (anterior && anterior.estoque_resultante_kg != null && l.estoque_resultante_kg != null) {
+        consumo_kg = Math.round((anterior.estoque_resultante_kg + l.peso_calculado_kg - l.estoque_resultante_kg) * 100) / 100;
+      }
+      return {
+        data: l.data_hora,
+        estoque_kg: l.estoque_resultante_kg ?? null,
+        peso_calculado_kg: l.peso_calculado_kg,
+        consumo_kg
+      };
+    });
 
     const fds = db.fichasSeguranca
       .filter(f => f.produto_id === produtoId)

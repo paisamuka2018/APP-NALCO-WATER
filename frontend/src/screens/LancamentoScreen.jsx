@@ -9,9 +9,8 @@ export default function LancamentoScreen() {
   const [sistemas, setSistemas] = useState([]);
   const [sistemaId, setSistemaId] = useState('');
   const [produtos, setProdutos] = useState([]);
-  const [linhas, setLinhas] = useState({}); // produto_id -> { unidades, volInicial, volFinal }
+  const [linhas, setLinhas] = useState({}); // produto_id -> { unidades, volInicial, volFinal, estoqueMedido }
   const [dataLancamento, setDataLancamento] = useState(hojeISO());
-  const [estoqueArea, setEstoqueArea] = useState('');
   const [responsavel, setResponsavel] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState('');
@@ -36,7 +35,8 @@ export default function LancamentoScreen() {
           iniciais[p.id] = {
             unidades: 0,
             volInicial: p.volume_inicial_l ?? 0,
-            volFinal: p.volume_final_l ?? 0
+            volFinal: p.volume_final_l ?? 0,
+            estoqueMedido: ''
           };
         });
         setLinhas(iniciais);
@@ -50,7 +50,7 @@ export default function LancamentoScreen() {
     }));
   }
 
-  function pesoTotal(produto) {
+  function pesoCarregado(produto) {
     const linha = linhas[produto.id];
     if (!linha) return 0;
     return Math.round((Number(linha.unidades) || 0) * produto.peso_unitario_kg * 100) / 100;
@@ -63,7 +63,8 @@ export default function LancamentoScreen() {
       produto_id: p.id,
       unidades_carregadas: Number(linhas[p.id]?.unidades) || 0,
       volume_inicial_l: Number(linhas[p.id]?.volInicial) || 0,
-      volume_final_l: Number(linhas[p.id]?.volFinal) || 0
+      volume_final_l: Number(linhas[p.id]?.volFinal) || 0,
+      estoque_medido_kg: linhas[p.id]?.estoqueMedido === '' ? null : Number(linhas[p.id]?.estoqueMedido)
     }));
 
     try {
@@ -72,7 +73,6 @@ export default function LancamentoScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data_lancamento: dataLancamento,
-          estoque_area_kg: estoqueArea === '' ? null : Number(estoqueArea),
           responsavel,
           itens,
           origem: navigator.onLine ? 'online' : 'offline_sync'
@@ -86,7 +86,7 @@ export default function LancamentoScreen() {
         setMensagem(`${data.resultados.length} produto(s) atualizados com sucesso.`);
         setLinhas(prev => {
           const novo = { ...prev };
-          produtos.forEach(p => { novo[p.id] = { ...novo[p.id], unidades: 0 }; });
+          produtos.forEach(p => { novo[p.id] = { ...novo[p.id], unidades: 0, estoqueMedido: '' }; });
           return novo;
         });
       } else {
@@ -113,15 +113,12 @@ export default function LancamentoScreen() {
         <label>Data do lançamento</label>
         <input type="date" value={dataLancamento} onChange={e => setDataLancamento(e.target.value)} />
 
-        <label>Estoque em área (kg)</label>
-        <input type="number" placeholder="Nível geral do sistema" value={estoqueArea} onChange={e => setEstoqueArea(e.target.value)} />
-
         <label>Responsável</label>
         <input type="text" value={responsavel} onChange={e => setResponsavel(e.target.value)} />
       </div>
 
       {produtos.map(p => {
-        const linha = linhas[p.id] || { unidades: 0, volInicial: 0, volFinal: 0 };
+        const linha = linhas[p.id] || { unidades: 0, volInicial: 0, volFinal: 0, estoqueMedido: '' };
         return (
           <div className="card" key={p.id}>
             <p style={{ fontWeight: 600, marginTop: 0, marginBottom: 4 }}>{p.nome}</p>
@@ -142,8 +139,20 @@ export default function LancamentoScreen() {
 
             <label style={{ fontSize: 13 }}>Unidades carregadas</label>
             <input type="number" value={linha.unidades} onChange={e => atualizarLinha(p.id, 'unidades', e.target.value)} />
-            <p style={{ fontSize: 12, color: '#374151', margin: '4px 0 0' }}>
-              Total calculado: <strong>{pesoTotal(p)} kg</strong>
+            <p style={{ fontSize: 12, color: '#374151', margin: '4px 0 10px' }}>
+              Total carregado agora: <strong>{pesoCarregado(p)} kg</strong>
+            </p>
+
+            <label style={{ fontSize: 13 }}>Estoque em área (kg) — medido após o carregamento</label>
+            <input
+              type="number"
+              placeholder="Deixe em branco para manter o cálculo automático"
+              value={linha.estoqueMedido}
+              onChange={e => atualizarLinha(p.id, 'estoqueMedido', e.target.value)}
+            />
+            <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>
+              Esse valor é o que alimenta a solicitação de compra — informe o estoque real
+              observado na área, não apenas o carregamento.
             </p>
           </div>
         );

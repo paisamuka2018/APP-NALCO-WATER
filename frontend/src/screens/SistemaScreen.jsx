@@ -1,5 +1,29 @@
 import React, { useEffect, useState } from 'react';
 
+function ConsumoChart({ historico }) {
+  const valores = historico.map(h => h.consumo_kg).filter(v => v != null);
+  if (valores.length < 2) {
+    return <p style={{ fontSize: 12, color: '#9ca3af' }}>Ainda não há lançamentos suficientes para montar o gráfico.</p>;
+  }
+  const max = Math.max(...valores);
+  const min = Math.min(...valores);
+  const range = max - min || 1;
+  const width = 280;
+  const height = 60;
+  const pontosValidos = historico.map((h, i) => ({ i, v: h.consumo_kg })).filter(p => p.v != null);
+  const pts = pontosValidos.map((p, idx) => {
+    const x = (idx / (pontosValidos.length - 1)) * width;
+    const y = height - ((p.v - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: 320, height: 60 }} role="img" aria-label="Gráfico de consumo entre lançamentos">
+      <polyline points={pts} fill="none" stroke="#2563eb" strokeWidth="2" />
+    </svg>
+  );
+}
+
 export default function SistemaScreen() {
   const [area, setArea] = useState('CCN');
   const [sistemas, setSistemas] = useState([]);
@@ -98,20 +122,25 @@ export default function SistemaScreen() {
             </div>
 
             <p style={{ fontSize: 13, color: '#6b7280', margin: '12px 0 6px' }}>
-              Histórico de lançamentos recentes
+              Consumo entre lançamentos (estoque anterior + carregado − estoque atual)
             </p>
             {historico.length === 0 && (
               <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>Nenhum lançamento registrado ainda.</p>
             )}
             {historico.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                {historico.map((h, i) => (
-                  <div key={i} style={{ background: '#f3f4f6', borderRadius: 8, padding: '6px 10px', textAlign: 'center', fontSize: 12 }}>
-                    <div style={{ color: '#6b7280' }}>{new Date(h.data).toLocaleDateString('pt-BR')}</div>
-                    <div style={{ fontWeight: 600 }}>+{h.peso_calculado_kg} kg</div>
-                  </div>
-                ))}
-              </div>
+              <>
+                <ConsumoChart historico={historico} />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0 12px' }}>
+                  {historico.map((h, i) => (
+                    <div key={i} style={{ background: '#f3f4f6', borderRadius: 8, padding: '6px 10px', textAlign: 'center', fontSize: 12 }}>
+                      <div style={{ color: '#6b7280' }}>{new Date(h.data).toLocaleDateString('pt-BR')}</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {h.consumo_kg != null ? `${h.consumo_kg} kg` : '—'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             <div style={{ borderTop: '1px solid #eee', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

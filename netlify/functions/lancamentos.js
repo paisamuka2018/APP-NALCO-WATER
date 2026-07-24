@@ -25,10 +25,18 @@ export default async (req) => {
         const produto = db.produtos.find(p => p.id === Number(item.produto_id));
         if (!produto) continue;
         const unidades = Number(item.unidades_carregadas) || 0;
+        const temEstoqueMedido = item.estoque_medido_kg !== undefined && item.estoque_medido_kg !== null && item.estoque_medido_kg !== '';
         // Item sem nada preenchido: não gera lançamento, só pula
-        if (unidades === 0 && item.volume_inicial_l == null && item.volume_final_l == null) continue;
+        if (unidades === 0 && !temEstoqueMedido && item.volume_inicial_l == null && item.volume_final_l == null) continue;
 
         const pesoCalculado = Math.round(unidades * produto.peso_unitario_kg * 100) / 100;
+
+        // O estoque real do produto é o valor medido em campo (se informado);
+        // caso contrário, cai para o cálculo acumulado (carregamento) como respaldo.
+        const estoqueResultante = temEstoqueMedido
+          ? Math.round(Number(item.estoque_medido_kg) * 100) / 100
+          : Math.round((produto.estoque_kg + pesoCalculado) * 100) / 100;
+
         const lancamento = {
           id: db.nextIds.lancamento++,
           produto_id: produto.id,
@@ -37,14 +45,14 @@ export default async (req) => {
           peso_calculado_kg: pesoCalculado,
           volume_inicial_l: item.volume_inicial_l ?? null,
           volume_final_l: item.volume_final_l ?? null,
-          estoque_area_kg: body.estoque_area_kg ?? null,
+          estoque_resultante_kg: estoqueResultante,
           responsavel: body.responsavel || null,
           origem: body.origem || 'online',
           status_sincronizacao: 'sincronizado'
         };
         db.lancamentos.push(lancamento);
 
-        produto.estoque_kg = Math.round((produto.estoque_kg + pesoCalculado) * 100) / 100;
+        produto.estoque_kg = estoqueResultante;
         if (item.volume_inicial_l != null) produto.volume_inicial_l = Number(item.volume_inicial_l);
         if (item.volume_final_l != null) produto.volume_final_l = Number(item.volume_final_l);
 
