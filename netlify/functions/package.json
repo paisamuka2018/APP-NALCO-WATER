@@ -1,8 +1,14 @@
 {
-  "name": "gestao-quimicos-functions",
+  "name": "gestao-quimicos",
   "version": "0.1.0",
-  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev"
+  },
   "dependencies": {
     "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.38.0"
   }
 }
