@@ -1,0 +1,11 @@
+{
+  "name": "gestao-quimicos",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.38.0"
+  }
+}
