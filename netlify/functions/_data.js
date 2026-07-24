@@ -125,9 +125,8 @@ export async function saveDb(db) {
 }
 
 export function json(body, status = 200) {
-  return {
-    statusCode: status,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  };
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
