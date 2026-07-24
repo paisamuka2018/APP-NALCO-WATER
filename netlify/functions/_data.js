@@ -101,7 +101,9 @@ function dadosIniciais() {
           estoque_kg: p.estoque,
           estoque_minimo_kg: p.minimo,
           volume_inicial_l: p.volInicial,
-          volume_final_l: p.volFinal
+          volume_final_l: p.volFinal,
+          dosagem_alvo: p.dosagem || null,
+          consumo_contratado_mensal_kg: null
         });
       }
     }
@@ -125,9 +127,8 @@ export async function saveDb(db) {
 }
 
 export function json(body, status = 200) {
-  return {
-    statusCode: status,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  };
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }

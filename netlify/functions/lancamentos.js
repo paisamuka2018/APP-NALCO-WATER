@@ -14,6 +14,47 @@ export default async (req) => {
 
   if (req.method === 'POST') {
     const body = await req.json();
+    const dataHora = body.data_lancamento
+      ? new Date(body.data_lancamento).toISOString()
+      : new Date().toISOString();
+
+    // Formato novo: lançamento em lote, todos os produtos de um sistema de uma vez
+    if (Array.isArray(body.itens)) {
+      const resultados = [];
+      for (const item of body.itens) {
+        const produto = db.produtos.find(p => p.id === Number(item.produto_id));
+        if (!produto) continue;
+        const unidades = Number(item.unidades_carregadas) || 0;
+        // Item sem nada preenchido: não gera lançamento, só pula
+        if (unidades === 0 && item.volume_inicial_l == null && item.volume_final_l == null) continue;
+
+        const pesoCalculado = Math.round(unidades * produto.peso_unitario_kg * 100) / 100;
+        const lancamento = {
+          id: db.nextIds.lancamento++,
+          produto_id: produto.id,
+          data_hora: dataHora,
+          unidades_carregadas: unidades,
+          peso_calculado_kg: pesoCalculado,
+          volume_inicial_l: item.volume_inicial_l ?? null,
+          volume_final_l: item.volume_final_l ?? null,
+          estoque_area_kg: body.estoque_area_kg ?? null,
+          responsavel: body.responsavel || null,
+          origem: body.origem || 'online',
+          status_sincronizacao: 'sincronizado'
+        };
+        db.lancamentos.push(lancamento);
+
+        produto.estoque_kg = Math.round((produto.estoque_kg + pesoCalculado) * 100) / 100;
+        if (item.volume_inicial_l != null) produto.volume_inicial_l = Number(item.volume_inicial_l);
+        if (item.volume_final_l != null) produto.volume_final_l = Number(item.volume_final_l);
+
+        resultados.push({ produto_id: produto.id, novo_estoque_kg: produto.estoque_kg, lancamento_id: lancamento.id });
+      }
+      await saveDb(db);
+      return json({ resultados }, 201);
+    }
+
+    // Formato antigo: um produto por vez (mantido por compatibilidade)
     const produto = db.produtos.find(p => p.id === Number(body.produto_id));
     if (!produto) return json({ erro: 'Produto não encontrado' }, 404);
 
@@ -23,11 +64,12 @@ export default async (req) => {
     const lancamento = {
       id: db.nextIds.lancamento++,
       produto_id: produto.id,
-      data_hora: new Date().toISOString(),
+      data_hora: dataHora,
       unidades_carregadas: unidades,
       peso_calculado_kg: pesoCalculado,
       volume_inicial_l: body.volume_inicial_l ?? null,
       volume_final_l: body.volume_final_l ?? null,
+      estoque_area_kg: body.estoque_area_kg ?? null,
       responsavel: body.responsavel || null,
       origem: body.origem || 'online',
       status_sincronizacao: 'sincronizado'

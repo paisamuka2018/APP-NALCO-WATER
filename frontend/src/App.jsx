@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import LancamentoScreen from './screens/LancamentoScreen.jsx';
 import EstoqueScreen from './screens/EstoqueScreen.jsx';
 import SolicitacaoScreen from './screens/SolicitacaoScreen.jsx';
+import CadastroScreen from './screens/CadastroScreen.jsx';
+import SistemaScreen from './screens/SistemaScreen.jsx';
 
 export default function App() {
   const [tela, setTela] = useState('lancamento');
@@ -19,11 +21,19 @@ export default function App() {
         <button className={tela === 'solicitacao' ? 'active' : ''} onClick={() => setTela('solicitacao')}>
           Solicitação
         </button>
+        <button className={tela === 'sistema' ? 'active' : ''} onClick={() => setTela('sistema')}>
+          Sistema
+        </button>
+        <button className={tela === 'cadastro' ? 'active' : ''} onClick={() => setTela('cadastro')}>
+          Cadastro
+        </button>
       </div>
 
       {tela === 'lancamento' && <LancamentoScreen />}
       {tela === 'estoque' && <EstoqueScreen />}
       {tela === 'solicitacao' && <SolicitacaoScreen />}
+      {tela === 'sistema' && <SistemaScreen />}
+      {tela === 'cadastro' && <CadastroScreen />}
     </div>
   );
 }

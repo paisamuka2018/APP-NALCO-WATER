@@ -10,6 +10,15 @@ export default function SolicitacaoScreen() {
 
   const urgentes = itens.filter(i => i.estoque_kg === 0).length;
 
+  async function baixarExcel() {
+    const res = await fetch(`/api/relatorio-solicitacao-excel?area=${area}`);
+    const blob = await res.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `solicitacao-compra-${area}.xlsx`;
+    link.click();
+  }
+
   return (
     <div>
       <div className="tabs">
@@ -44,6 +53,10 @@ export default function SolicitacaoScreen() {
           </div>
         ))}
       </div>
+
+      <button className="primary" disabled={itens.length === 0} onClick={baixarExcel}>
+        Gerar planilha de solicitação (Excel)
+      </button>
     </div>
   );
 }
