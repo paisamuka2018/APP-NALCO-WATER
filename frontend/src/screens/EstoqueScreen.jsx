@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+function fmt(n) {
+  return Number(n).toLocaleString('pt-BR');
+}
+
 export default function EstoqueScreen() {
   const [area, setArea] = useState('CCN');
   const [itens, setItens] = useState([]);
@@ -35,13 +39,14 @@ export default function EstoqueScreen() {
 
       <div className="grid3">
         <div className="stat"><div className="label">Produtos</div><div className="value">{itens.length}</div></div>
-        <div className="stat"><div className="label">Estoque total</div><div className="value">{totalEstoque.toFixed(1)} kg</div></div>
+        <div className="stat"><div className="label">Estoque total</div><div className="value">{fmt(totalEstoque.toFixed(1))} kg</div></div>
         <div className="stat"><div className="label">Nível baixo</div><div className="value warning">{totalAlerta}</div></div>
       </div>
 
       <div className="card" style={{ padding: 0 }}>
         {filtrados.map(i => {
           const baixo = i.estoque_kg < i.estoque_minimo_kg;
+          const unidades = i.peso_unitario_kg ? (i.estoque_kg / i.peso_unitario_kg).toFixed(1) : null;
           return (
             <div key={i.id} className="list-item">
               <div>
@@ -49,7 +54,10 @@ export default function EstoqueScreen() {
                 <div style={{ fontSize: 12, color: '#6b7280' }}>{i.sistema}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div className={baixo ? 'warning' : ''} style={{ fontWeight: 600 }}>{i.estoque_kg} kg</div>
+                <div className={baixo ? 'warning' : ''} style={{ fontWeight: 600 }}>{fmt(i.estoque_kg)} kg</div>
+                {unidades != null && (
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>≈ {fmt(unidades)} {i.tipo_embalagem}</div>
+                )}
                 <div style={{ fontSize: 11 }} className={baixo ? 'warning' : ''}>
                   {baixo ? 'abaixo do mínimo' : 'nível ok'}
                 </div>

@@ -4,6 +4,16 @@ function hojeISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function calcularKg(unidades, pesoUnitario) {
+  const n = Number(unidades);
+  if (!n || !pesoUnitario) return 0;
+  return Math.round(n * pesoUnitario * 100) / 100;
+}
+
+function fmt(n) {
+  return Number(n).toLocaleString('pt-BR');
+}
+
 export default function LancamentoScreen() {
   const [area, setArea] = useState('CCN');
   const [sistemas, setSistemas] = useState([]);
@@ -36,7 +46,7 @@ export default function LancamentoScreen() {
             unidades: 0,
             volInicial: p.volume_inicial_l ?? 0,
             volFinal: p.volume_final_l ?? 0,
-            estoqueMedido: ''
+            estoqueMedidoUnidades: ''
           };
         });
         setLinhas(iniciais);
@@ -59,13 +69,20 @@ export default function LancamentoScreen() {
   async function registrarTudo() {
     setEnviando(true);
     setMensagem('');
-    const itens = produtos.map(p => ({
-      produto_id: p.id,
-      unidades_carregadas: Number(linhas[p.id]?.unidades) || 0,
-      volume_inicial_l: Number(linhas[p.id]?.volInicial) || 0,
-      volume_final_l: Number(linhas[p.id]?.volFinal) || 0,
-      estoque_medido_kg: linhas[p.id]?.estoqueMedido === '' ? null : Number(linhas[p.id]?.estoqueMedido)
-    }));
+    const itens = produtos.map(p => {
+      const linha = linhas[p.id] || {};
+      const estoqueUnidades = linha.estoqueMedidoUnidades;
+      const estoqueKgCalculado = estoqueUnidades === '' || estoqueUnidades == null
+        ? null
+        : calcularKg(estoqueUnidades, p.peso_unitario_kg);
+      return {
+        produto_id: p.id,
+        unidades_carregadas: Number(linha.unidades) || 0,
+        volume_inicial_l: Number(linha.volInicial) || 0,
+        volume_final_l: Number(linha.volFinal) || 0,
+        estoque_medido_kg: estoqueKgCalculado
+      };
+    });
 
     try {
       const res = await fetch('/api/lancamentos', {
@@ -86,7 +103,7 @@ export default function LancamentoScreen() {
         setMensagem(`${data.resultados.length} produto(s) atualizados com sucesso.`);
         setLinhas(prev => {
           const novo = { ...prev };
-          produtos.forEach(p => { novo[p.id] = { ...novo[p.id], unidades: 0, estoqueMedido: '' }; });
+          produtos.forEach(p => { novo[p.id] = { ...novo[p.id], unidades: 0, estoqueMedidoUnidades: '' }; });
           return novo;
         });
       } else {
@@ -123,7 +140,7 @@ export default function LancamentoScreen() {
           <div className="card" key={p.id}>
             <p style={{ fontWeight: 600, marginTop: 0, marginBottom: 4 }}>{p.nome}</p>
             <p style={{ fontSize: 12, color: '#6b7280', marginTop: 0 }}>
-              Embalagem {p.tipo_embalagem} · {p.peso_unitario_kg} kg/unidade · estoque atual {p.estoque_kg} kg
+              Embalagem {p.tipo_embalagem} · {fmt(p.peso_unitario_kg)} kg/unidade · estoque atual {fmt(p.estoque_kg)} kg
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -140,19 +157,26 @@ export default function LancamentoScreen() {
             <label style={{ fontSize: 13 }}>Unidades carregadas</label>
             <input type="number" value={linha.unidades} onChange={e => atualizarLinha(p.id, 'unidades', e.target.value)} />
             <p style={{ fontSize: 12, color: '#374151', margin: '4px 0 10px' }}>
-              Total carregado agora: <strong>{pesoCarregado(p)} kg</strong>
+              Total carregado agora: <strong>{fmt(pesoCarregado(p))} kg</strong>
             </p>
 
-            <label style={{ fontSize: 13 }}>Estoque em área (kg) — medido após o carregamento</label>
+            <label style={{ fontSize: 13 }}>Estoque em área (unidades) — medido após o carregamento</label>
             <input
               type="number"
               placeholder="Deixe em branco para manter o cálculo automático"
-              value={linha.estoqueMedido}
-              onChange={e => atualizarLinha(p.id, 'estoqueMedido', e.target.value)}
+              value={linha.estoqueMedidoUnidades}
+              onChange={e => atualizarLinha(p.id, 'estoqueMedidoUnidades', e.target.value)}
             />
+            <p style={{ fontSize: 12, color: '#374151', margin: '4px 0 0' }}>
+              Equivale a: <strong>
+                {linha.estoqueMedidoUnidades === '' || linha.estoqueMedidoUnidades == null
+                  ? '—'
+                  : `${fmt(calcularKg(linha.estoqueMedidoUnidades, p.peso_unitario_kg))} kg`}
+              </strong>
+            </p>
             <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>
-              Esse valor é o que alimenta a solicitação de compra — informe o estoque real
-              observado na área, não apenas o carregamento.
+              Esse valor é o que alimenta a solicitação de compra — informe quantas unidades
+              de {p.tipo_embalagem} existem hoje na área, não apenas o carregamento.
             </p>
           </div>
         );

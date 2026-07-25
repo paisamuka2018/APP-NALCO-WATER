@@ -122,7 +122,7 @@ export default function SistemaScreen() {
             </div>
 
             <p style={{ fontSize: 13, color: '#6b7280', margin: '12px 0 6px' }}>
-              Consumo entre lançamentos (estoque anterior + carregado − estoque atual)
+              Consumo entre lançamentos (queda de volume no tanque, convertida em kg)
             </p>
             {historico.length === 0 && (
               <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>Nenhum lançamento registrado ainda.</p>

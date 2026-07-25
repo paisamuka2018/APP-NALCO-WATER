@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+function fmt(n) {
+  return Number(n).toLocaleString('pt-BR');
+}
+
 export default function SolicitacaoScreen() {
   const [area, setArea] = useState('CCN');
   const [itens, setItens] = useState([]);
@@ -43,12 +47,12 @@ export default function SolicitacaoScreen() {
                 {i.produto} {i.estoque_kg === 0 && <span className="warning" style={{ fontSize: 11 }}> · zerado</span>}
               </div>
               <div style={{ fontSize: 12, color: '#6b7280' }}>
-                {i.sistema} · estoque {i.estoque_kg} kg · mínimo {i.estoque_minimo_kg} kg
+                {i.sistema} · estoque {fmt(i.estoque_kg)} kg · mínimo {fmt(i.estoque_minimo_kg)} kg
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 600 }}>{i.sugerido_kg} kg</div>
-              <div style={{ fontSize: 11, color: '#6b7280' }}>{i.sugerido_unidades} {i.tipo_embalagem}</div>
+              <div style={{ fontWeight: 600 }}>{fmt(i.sugerido_kg)} kg</div>
+              <div style={{ fontSize: 11, color: '#6b7280' }}>{fmt(i.sugerido_unidades)} {i.tipo_embalagem}</div>
             </div>
           </div>
         ))}
