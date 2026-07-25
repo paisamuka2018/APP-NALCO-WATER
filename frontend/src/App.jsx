@@ -4,6 +4,7 @@ import EstoqueScreen from './screens/EstoqueScreen.jsx';
 import SolicitacaoScreen from './screens/SolicitacaoScreen.jsx';
 import CadastroScreen from './screens/CadastroScreen.jsx';
 import SistemaScreen from './screens/SistemaScreen.jsx';
+import EditarProdutosScreen from './screens/EditarProdutosScreen.jsx';
 
 export default function App() {
   const [tela, setTela] = useState('lancamento');
@@ -27,6 +28,9 @@ export default function App() {
         <button className={tela === 'cadastro' ? 'active' : ''} onClick={() => setTela('cadastro')}>
           Cadastro
         </button>
+        <button className={tela === 'editar' ? 'active' : ''} onClick={() => setTela('editar')}>
+          Editar
+        </button>
       </div>
 
       {tela === 'lancamento' && <LancamentoScreen />}
@@ -34,6 +38,7 @@ export default function App() {
       {tela === 'solicitacao' && <SolicitacaoScreen />}
       {tela === 'sistema' && <SistemaScreen />}
       {tela === 'cadastro' && <CadastroScreen />}
+      {tela === 'editar' && <EditarProdutosScreen />}
     </div>
   );
 }

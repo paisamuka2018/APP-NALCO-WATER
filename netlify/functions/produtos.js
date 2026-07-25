@@ -36,6 +36,41 @@ export default async (req) => {
     return json({ id: novo.id }, 201);
   }
 
+  if (req.method === 'PUT') {
+    const produtoId = Number(url.searchParams.get('produto_id'));
+    const produto = db.produtos.find(p => p.id === produtoId);
+    if (!produto) return json({ erro: 'Produto não encontrado' }, 404);
+
+    const body = await req.json();
+    const campos = [
+      'nome', 'finalidade', 'tipo_embalagem', 'peso_unitario_kg',
+      'densidade', 'estoque_minimo_kg', 'estoque_kg', 'sistema_id'
+    ];
+    campos.forEach(campo => {
+      if (body[campo] !== undefined && body[campo] !== '') {
+        const numericos = ['peso_unitario_kg', 'densidade', 'estoque_minimo_kg', 'estoque_kg', 'sistema_id'];
+        produto[campo] = numericos.includes(campo) ? Number(body[campo]) : body[campo];
+      }
+    });
+
+    await saveDb(db);
+    return json({ ok: true, produto });
+  }
+
+  if (req.method === 'DELETE') {
+    const produtoId = Number(url.searchParams.get('produto_id'));
+    const index = db.produtos.findIndex(p => p.id === produtoId);
+    if (index === -1) return json({ erro: 'Produto não encontrado' }, 404);
+
+    db.produtos.splice(index, 1);
+    // Remove também o histórico de lançamentos e FDS associados, para não deixar "órfãos"
+    db.lancamentos = db.lancamentos.filter(l => l.produto_id !== produtoId);
+    db.fichasSeguranca = db.fichasSeguranca.filter(f => f.produto_id !== produtoId);
+
+    await saveDb(db);
+    return json({ ok: true });
+  }
+
   return json({ erro: 'Método não suportado' }, 405);
 };
 
