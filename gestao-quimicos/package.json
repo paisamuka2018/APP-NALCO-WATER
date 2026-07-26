@@ -1,0 +1,15 @@
+{
+  "name": "gestao-quimicos",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.38.0"
+  }
+}

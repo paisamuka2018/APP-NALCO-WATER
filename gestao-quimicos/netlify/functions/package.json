@@ -1,0 +1,8 @@
+{
+  "name": "gestao-quimicos-functions",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
