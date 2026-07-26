@@ -5,6 +5,7 @@ function fmt(n) {
 }
 
 export default function EditarProdutosScreen() {
+  const [subaba, setSubaba] = useState('produtos'); // produtos | sistemas
   const [area, setArea] = useState('CCN');
   const [produtos, setProdutos] = useState([]);
   const [todosSistemas, setTodosSistemas] = useState([]);
@@ -13,6 +14,11 @@ export default function EditarProdutosScreen() {
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(null);
   const [mensagem, setMensagem] = useState('');
+
+  // --- edição de sistema (dados operacionais) ---
+  const [editandoSistema, setEditandoSistema] = useState(null);
+  const [rascunhoSistema, setRascunhoSistema] = useState({});
+  const [salvandoSistema, setSalvandoSistema] = useState(false);
 
   function carregar() {
     fetch(`/api/produtos?area=${area}`)
@@ -36,7 +42,8 @@ export default function EditarProdutosScreen() {
       densidade: p.densidade ?? '',
       estoque_minimo_kg: p.estoque_minimo_kg,
       estoque_kg: p.estoque_kg,
-      sistema_id: p.sistema_id
+      sistema_id: p.sistema_id,
+      preco_unitario: p.preco_unitario ?? ''
     });
     setMensagem('');
   }
@@ -87,6 +94,40 @@ export default function EditarProdutosScreen() {
     setExcluindo(null);
   }
 
+  function abrirEdicaoSistema(s) {
+    setEditandoSistema(s.id);
+    setRascunhoSistema({
+      nome: s.nome,
+      subsistema: s.subsistema || '',
+      area: s.area,
+      clientes_atendidos: s.clientes_atendidos || '',
+      vazao: s.vazao || '',
+      dosagem_contrato: s.dosagem_contrato || '',
+      observacoes: s.observacoes || ''
+    });
+  }
+
+  async function salvarSistema(sistemaId) {
+    setSalvandoSistema(true);
+    try {
+      const res = await fetch(`/api/sistemas?sistema_id=${sistemaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rascunhoSistema)
+      });
+      if (res.ok) {
+        setMensagem('Sistema atualizado com sucesso.');
+        setEditandoSistema(null);
+        fetch('/api/sistemas').then(r => r.json()).then(setTodosSistemas);
+      } else {
+        setMensagem('Não foi possível salvar o sistema.');
+      }
+    } catch {
+      setMensagem('Erro de conexão ao salvar o sistema.');
+    }
+    setSalvandoSistema(false);
+  }
+
   // Agrupa por sistema para facilitar a navegação
   const porSistema = produtos.reduce((acc, p) => {
     const chave = p.sistema_nome || 'Sem sistema';
@@ -98,11 +139,77 @@ export default function EditarProdutosScreen() {
   return (
     <div>
       <div className="tabs">
-        <button className={area === 'CCN' ? 'active' : ''} onClick={() => setArea('CCN')}>CCN</button>
-        <button className={area === 'CCS' ? 'active' : ''} onClick={() => setArea('CCS')}>CCS</button>
+        <button className={subaba === 'produtos' ? 'active' : ''} onClick={() => setSubaba('produtos')}>Editar produtos</button>
+        <button className={subaba === 'sistemas' ? 'active' : ''} onClick={() => setSubaba('sistemas')}>Editar sistemas</button>
       </div>
 
       {mensagem && <p style={{ fontSize: 13, marginBottom: 12 }}>{mensagem}</p>}
+
+      {subaba === 'sistemas' && (
+        <div>
+          {todosSistemas.map(s => (
+            <div className="card" key={s.id}>
+              {editandoSistema === s.id ? (
+                <>
+                  <label style={{ fontSize: 13 }}>Nome do sistema</label>
+                  <input type="text" value={rascunhoSistema.nome} onChange={e => setRascunhoSistema(prev => ({ ...prev, nome: e.target.value }))} />
+
+                  <label style={{ fontSize: 13 }}>Subsistema</label>
+                  <input type="text" value={rascunhoSistema.subsistema} onChange={e => setRascunhoSistema(prev => ({ ...prev, subsistema: e.target.value }))} />
+
+                  <label style={{ fontSize: 13 }}>Área</label>
+                  <select value={rascunhoSistema.area} onChange={e => setRascunhoSistema(prev => ({ ...prev, area: e.target.value }))}>
+                    <option value="CCN">CCN</option>
+                    <option value="CCS">CCS</option>
+                  </select>
+
+                  <label style={{ fontSize: 13 }}>Clientes atendidos</label>
+                  <input type="text" placeholder="Ex: Aciaria, Lingotamento" value={rascunhoSistema.clientes_atendidos} onChange={e => setRascunhoSistema(prev => ({ ...prev, clientes_atendidos: e.target.value }))} />
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 13 }}>Vazão</label>
+                      <input type="text" placeholder="Ex: 450 m³/h" value={rascunhoSistema.vazao} onChange={e => setRascunhoSistema(prev => ({ ...prev, vazao: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 13 }}>Dosagem de contrato</label>
+                      <input type="text" placeholder="Ex: 5,6 ppm" value={rascunhoSistema.dosagem_contrato} onChange={e => setRascunhoSistema(prev => ({ ...prev, dosagem_contrato: e.target.value }))} />
+                    </div>
+                  </div>
+
+                  <label style={{ fontSize: 13 }}>Observações</label>
+                  <input type="text" value={rascunhoSistema.observacoes} onChange={e => setRascunhoSistema(prev => ({ ...prev, observacoes: e.target.value }))} />
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="primary" disabled={salvandoSistema} onClick={() => salvarSistema(s.id)} style={{ flex: 1 }}>
+                      {salvandoSistema ? 'Salvando...' : 'Salvar alterações'}
+                    </button>
+                    <button onClick={() => setEditandoSistema(null)} style={{ flex: 1 }}>Cancelar</button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ fontWeight: 600, margin: 0 }}>{s.nome} <span style={{ fontWeight: 400, color: '#6b7280', fontSize: 12 }}>({s.area})</span></p>
+                    <p style={{ fontSize: 12, color: '#6b7280', margin: '2px 0 0' }}>
+                      {s.clientes_atendidos ? `Clientes: ${s.clientes_atendidos}` : 'Sem dados operacionais cadastrados'}
+                      {s.vazao ? ` · Vazão: ${s.vazao}` : ''}
+                    </p>
+                  </div>
+                  <button style={{ width: 'auto', padding: '8px 12px' }} onClick={() => abrirEdicaoSistema(s)}>Editar</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {subaba === 'produtos' && (
+      <div>
+      <div className="tabs">
+        <button className={area === 'CCN' ? 'active' : ''} onClick={() => setArea('CCN')}>CCN</button>
+        <button className={area === 'CCS' ? 'active' : ''} onClick={() => setArea('CCS')}>CCS</button>
+      </div>
 
       {Object.entries(porSistema).map(([sistemaNome, lista]) => (
         <div key={sistemaNome} style={{ marginBottom: 20 }}>
@@ -153,6 +260,9 @@ export default function EditarProdutosScreen() {
                   <label style={{ fontSize: 13 }}>Estoque atual (kg) — ajuste manual, use com cuidado</label>
                   <input type="number" value={rascunho.estoque_kg} onChange={e => setRascunho(prev => ({ ...prev, estoque_kg: e.target.value }))} />
 
+                  <label style={{ fontSize: 13 }}>Preço por kg (R$) — opcional</label>
+                  <input type="number" step="0.01" value={rascunho.preco_unitario} onChange={e => setRascunho(prev => ({ ...prev, preco_unitario: e.target.value }))} />
+
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className="primary" disabled={salvando} onClick={() => salvar(p.id)} style={{ flex: 1 }}>
                       {salvando ? 'Salvando...' : 'Salvar alterações'}
@@ -185,6 +295,8 @@ export default function EditarProdutosScreen() {
 
       {produtos.length === 0 && (
         <p style={{ fontSize: 13, color: '#9ca3af' }}>Nenhum produto cadastrado nesta área ainda.</p>
+      )}
+      </div>
       )}
     </div>
   );

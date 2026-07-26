@@ -46,7 +46,12 @@ export default async (req) => {
       estoque_kg: 0,
       estoque_minimo_kg: Number(body.estoque_minimo_kg || 0),
       volume_inicial_l: 0,
-      volume_final_l: 0
+      volume_final_l: 0,
+      dosagem_alvo: null,
+      consumo_contratado_mensal_kg: null,
+      estoque_bau_kg: 0,
+      estoque_minimo_bau_kg: 0,
+      preco_unitario: body.preco_unitario ? Number(body.preco_unitario) : null
     };
     db.produtos.push(novo);
     await saveDb(db);
@@ -61,11 +66,11 @@ export default async (req) => {
     const body = await req.json();
     const campos = [
       'nome', 'finalidade', 'tipo_embalagem', 'peso_unitario_kg',
-      'densidade', 'estoque_minimo_kg', 'estoque_kg', 'sistema_id'
+      'densidade', 'estoque_minimo_kg', 'estoque_kg', 'sistema_id', 'preco_unitario'
     ];
     campos.forEach(campo => {
       if (body[campo] !== undefined && body[campo] !== '') {
-        const numericos = ['peso_unitario_kg', 'densidade', 'estoque_minimo_kg', 'estoque_kg', 'sistema_id'];
+        const numericos = ['peso_unitario_kg', 'densidade', 'estoque_minimo_kg', 'estoque_kg', 'sistema_id', 'preco_unitario'];
         produto[campo] = numericos.includes(campo) ? Number(body[campo]) : body[campo];
       }
     });

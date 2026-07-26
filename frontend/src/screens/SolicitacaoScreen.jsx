@@ -14,11 +14,11 @@ export default function SolicitacaoScreen() {
     if (tipo === 'semanal') {
       fetch(`/api/solicitacao-compra?area=${area}`).then(r => r.json()).then(setItens);
     } else {
-      fetch('/api/solicitacao-bau').then(r => r.json()).then(data => setItens(data.filter(i => i.area === area)));
+      fetch('/api/solicitacao-bau').then(r => r.json()).then(setItens);
     }
   }, [tipo, area]);
 
-  const urgentes = itens.filter(i => (tipo === 'semanal' ? i.estoque_kg : i.estoque_bau_kg) === 0).length;
+  const urgentes = itens.filter(i => (tipo === 'semanal' ? i.estoque_kg : i.estoque_kg) === 0).length;
 
   async function baixarExcel() {
     if (tipo !== 'semanal') return; // Excel do BAÚ pode ser adicionado em uma próxima etapa
@@ -38,10 +38,12 @@ export default function SolicitacaoScreen() {
         <button className={tipo === 'mensal' ? 'active' : ''} onClick={() => setTipo('mensal')}>Solicitação mensal (BAÚ)</button>
       </div>
 
-      <div className="tabs">
-        <button className={area === 'CCN' ? 'active' : ''} onClick={() => setArea('CCN')}>CCN</button>
-        <button className={area === 'CCS' ? 'active' : ''} onClick={() => setArea('CCS')}>CCS</button>
-      </div>
+      {tipo === 'semanal' && (
+        <div className="tabs">
+          <button className={area === 'CCN' ? 'active' : ''} onClick={() => setArea('CCN')}>CCN</button>
+          <button className={area === 'CCS' ? 'active' : ''} onClick={() => setArea('CCS')}>CCS</button>
+        </div>
+      )}
 
       <p style={{ fontSize: 12, color: '#6b7280' }}>
         {tipo === 'semanal'
@@ -52,33 +54,29 @@ export default function SolicitacaoScreen() {
       <div className="grid3">
         <div className="stat"><div className="label">Itens</div><div className="value">{itens.length}</div></div>
         <div className="stat"><div className="label">Urgentes</div><div className="value warning">{urgentes}</div></div>
-        <div className="stat"><div className="label">Área</div><div className="value">{area}</div></div>
+        <div className="stat"><div className="label">{tipo === 'semanal' ? 'Área' : ' '}</div><div className="value">{tipo === 'semanal' ? area : ''}</div></div>
       </div>
 
       <div className="card" style={{ padding: 0 }}>
         {itens.length === 0 && (
-          <p style={{ padding: 16, fontSize: 13, color: '#9ca3af' }}>Nenhum item abaixo do mínimo nesta área.</p>
+          <p style={{ padding: 16, fontSize: 13, color: '#9ca3af' }}>Nenhum item abaixo do mínimo.</p>
         )}
-        {itens.map(i => {
-          const estoqueAtual = tipo === 'semanal' ? i.estoque_kg : i.estoque_bau_kg;
-          const estoqueMinimo = tipo === 'semanal' ? i.estoque_minimo_kg : i.estoque_minimo_bau_kg;
-          return (
-            <div key={i.id} className="list-item">
-              <div>
-                <div style={{ fontWeight: 500 }}>
-                  {i.produto} {estoqueAtual === 0 && <span className="warning" style={{ fontSize: 11 }}> · zerado</span>}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>
-                  {i.sistema} · estoque {fmt(estoqueAtual)} kg · mínimo {fmt(estoqueMinimo)} kg
-                </div>
+        {itens.map(i => (
+          <div key={i.id} className="list-item">
+            <div>
+              <div style={{ fontWeight: 500 }}>
+                {i.produto} {i.estoque_kg === 0 && <span className="warning" style={{ fontSize: 11 }}> · zerado</span>}
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 600 }}>{fmt(i.sugerido_kg)} kg</div>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>{fmt(i.sugerido_unidades)} {i.tipo_embalagem}</div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>
+                {tipo === 'semanal' ? i.sistema : 'BAÚ'} · estoque {fmt(i.estoque_kg)} kg · mínimo {fmt(i.estoque_minimo_kg)} kg
               </div>
             </div>
-          );
-        })}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 600 }}>{fmt(i.sugerido_kg)} kg</div>
+              {tipo === 'semanal' && <div style={{ fontSize: 11, color: '#6b7280' }}>{fmt(i.sugerido_unidades)} {i.tipo_embalagem}</div>}
+            </div>
+          </div>
+        ))}
       </div>
 
       {tipo === 'semanal' && (

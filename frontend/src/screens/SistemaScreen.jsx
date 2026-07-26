@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PeriodoBadge from '../components/PeriodoBadge.jsx';
+import { mesAtualISO, buscarSemanas } from '../utils/periodo.js';
 
 function ConsumoChart({ historico }) {
   const valores = historico.map(h => h.consumo_kg).filter(v => v != null);
@@ -32,6 +33,13 @@ export default function SistemaScreen() {
   const [produtos, setProdutos] = useState([]);
   const [detalhes, setDetalhes] = useState({}); // produto_id -> { produto, historico, fds }
   const [editandoDosagem, setEditandoDosagem] = useState({}); // produto_id -> valor
+  const [mes, setMes] = useState(mesAtualISO());
+  const [semanas, setSemanas] = useState([]);
+  const [semanaEscolhida, setSemanaEscolhida] = useState(null); // null = últimos lançamentos
+
+  useEffect(() => {
+    buscarSemanas(mes).then(data => setSemanas(data.semanas));
+  }, [mes]);
 
   useEffect(() => {
     fetch(`/api/sistemas?area=${area}`)
@@ -50,10 +58,15 @@ export default function SistemaScreen() {
         setProdutos(data);
         data.forEach(p => carregarDetalhe(p.id));
       });
-  }, [sistemaId]);
+  }, [sistemaId, semanaEscolhida]);
 
   function carregarDetalhe(produtoId) {
-    fetch(`/api/produto-detalhe?produto_id=${produtoId}`)
+    const query = new URLSearchParams({ produto_id: produtoId });
+    if (semanaEscolhida) {
+      query.set('inicio', semanaEscolhida.inicio);
+      query.set('fim', semanaEscolhida.fim);
+    }
+    fetch(`/api/produto-detalhe?${query}`)
       .then(r => r.json())
       .then(data => {
         setDetalhes(prev => ({ ...prev, [produtoId]: data }));
@@ -99,6 +112,27 @@ export default function SistemaScreen() {
       <select value={sistemaId} onChange={e => setSistemaId(e.target.value)}>
         {sistemas.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
       </select>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label style={{ fontSize: 13 }}>Mês</label>
+          <input type="month" value={mes} onChange={e => setMes(e.target.value)} />
+        </div>
+        <div>
+          <label style={{ fontSize: 13 }}>Semana</label>
+          <select
+            value={semanaEscolhida?.semana ?? ''}
+            onChange={e => setSemanaEscolhida(semanas.find(s => s.semana === Number(e.target.value)) || null)}
+          >
+            <option value="">Últimos lançamentos</option>
+            {semanas.map(s => (
+              <option key={s.semana} value={s.semana}>
+                Semana {s.semana} (até {new Date(s.fim + 'T00:00:00').toLocaleDateString('pt-BR')})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {produtos.map(p => {
         const detalhe = detalhes[p.id];

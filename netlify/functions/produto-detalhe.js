@@ -9,10 +9,23 @@ export default async (req) => {
     const produto = db.produtos.find(p => p.id === produtoId);
     if (!produto) return json({ erro: 'Produto não encontrado' }, 404);
 
-    const lancamentosOrdenados = db.lancamentos
+    const inicioFiltro = url.searchParams.get('inicio');
+    const fimFiltro = url.searchParams.get('fim');
+
+    let lancamentosOrdenados = db.lancamentos
       .filter(l => l.produto_id === produtoId)
-      .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora))
-      .slice(-12);
+      .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
+
+    if (inicioFiltro && fimFiltro) {
+      const ini = new Date(inicioFiltro + 'T00:00:00Z');
+      const fim = new Date(fimFiltro + 'T23:59:59Z');
+      lancamentosOrdenados = lancamentosOrdenados.filter(l => {
+        const d = new Date(l.data_hora);
+        return d >= ini && d <= fim;
+      });
+    } else {
+      lancamentosOrdenados = lancamentosOrdenados.slice(-12);
+    }
 
     const historico = lancamentosOrdenados.map((l, i) => {
       const anterior = i > 0 ? lancamentosOrdenados[i - 1] : null;

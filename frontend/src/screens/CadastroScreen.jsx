@@ -22,6 +22,7 @@ export default function CadastroScreen() {
   const [pesoUnitario, setPesoUnitario] = useState('');
   const [densidade, setDensidade] = useState('');
   const [estoqueMinimo, setEstoqueMinimo] = useState('');
+  const [preco, setPreco] = useState('');
 
   const [mensagem, setMensagem] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -105,7 +106,8 @@ export default function CadastroScreen() {
           tipo_embalagem: tipoEmbalagem,
           peso_unitario_kg: Number(pesoUnitario),
           densidade: densidade ? Number(densidade) : null,
-          estoque_minimo_kg: Number(estoqueMinimo) || 0
+          estoque_minimo_kg: Number(estoqueMinimo) || 0,
+          preco_unitario: preco ? Number(preco) : null
         })
       });
       if (res.ok) {
@@ -116,6 +118,7 @@ export default function CadastroScreen() {
         setPesoUnitario('');
         setDensidade('');
         setEstoqueMinimo('');
+        setPreco('');
         setModeloEscolhido('');
         carregarModelos();
       } else {
@@ -205,6 +208,9 @@ export default function CadastroScreen() {
               <input type="number" placeholder="Ex: 60" value={estoqueMinimo} onChange={e => setEstoqueMinimo(e.target.value)} />
             </div>
           </div>
+
+          <label style={{ fontSize: 13 }}>Preço por kg (R$) — opcional</label>
+          <input type="number" step="0.01" placeholder="Ex: 8.50" value={preco} onChange={e => setPreco(e.target.value)} />
 
           <button className="primary" disabled={salvando} onClick={salvarProduto}>
             {salvando ? 'Salvando...' : 'Salvar produto'}

@@ -88,7 +88,16 @@ function dadosIniciais() {
   for (const area of ['CCN', 'CCS']) {
     for (const [nomeSistema, info] of Object.entries(sistemasSeed[area])) {
       const sistemaId = sistemaIdSeq++;
-      sistemas.push({ id: sistemaId, nome: nomeSistema, subsistema: info.sub, area });
+      sistemas.push({
+        id: sistemaId,
+        nome: nomeSistema,
+        subsistema: info.sub,
+        area,
+        clientes_atendidos: null,
+        vazao: null,
+        dosagem_contrato: null,
+        observacoes: null
+      });
       for (const p of info.produtos) {
         produtos.push({
           id: produtoIdSeq++,
@@ -105,11 +114,28 @@ function dadosIniciais() {
           dosagem_alvo: p.dosagem || null,
           consumo_contratado_mensal_kg: null,
           estoque_bau_kg: 0,
-          estoque_minimo_bau_kg: 0
+          estoque_minimo_bau_kg: 0,
+          preco_unitario: null
         });
       }
     }
   }
+
+  const produtosBauSeed = [
+    'MAGNAPRO 15.61', 'MAGNAPRO 15.11', 'NALCO 7384.61L', 'NALCO 7384.11L',
+    '3DT 121.61', '3DT 121.11', 'NALCO 7330.11', 'MAGNAPRO 12.11',
+    'NALCO 7385.61', 'NALCO 7128.61L', 'NALCO 71301.11', '3DT 185.11',
+    'NALCO 3DT 198.11', 'NALCO 9546.25L', 'NALCO 19 PULV', '500274.11',
+    'TRAC 109.11', '9941.04', 'BZL012', 'Ultrion 8187.61',
+    'NALCO 47005', 'DUSTFOAMPLUS.61', 'NALCO 7751.11 LA', 'NALCO 7751.61 LA',
+    'NALCO 47508', '47503.61', 'Biotab.10'
+  ];
+  const produtosBau = produtosBauSeed.map((nome, i) => ({
+    id: i + 1,
+    nome,
+    estoque_kg: 0,
+    estoque_minimo_kg: 0
+  }));
 
   return {
     sistemas,
@@ -117,7 +143,14 @@ function dadosIniciais() {
     lancamentos: [],
     fichasSeguranca: [],
     configSemanas: {},
-    nextIds: { sistema: sistemaIdSeq, produto: produtoIdSeq, lancamento: 1, fds: 1 }
+    produtosBau,
+    nextIds: {
+      sistema: sistemaIdSeq,
+      produto: produtoIdSeq,
+      lancamento: 1,
+      fds: 1,
+      produtoBau: produtosBau.length + 1
+    }
   };
 }
 
@@ -127,9 +160,21 @@ export async function loadDb() {
   if (data) {
     // Compatibilidade com bancos salvos antes destas novas colunas/seções
     if (!data.configSemanas) data.configSemanas = {};
+    if (!data.produtosBau) {
+      const inicial = dadosIniciais();
+      data.produtosBau = inicial.produtosBau;
+      data.nextIds.produtoBau = inicial.nextIds.produtoBau;
+    }
     data.produtos.forEach(p => {
       if (p.estoque_bau_kg === undefined) p.estoque_bau_kg = 0;
       if (p.estoque_minimo_bau_kg === undefined) p.estoque_minimo_bau_kg = 0;
+      if (p.preco_unitario === undefined) p.preco_unitario = null;
+    });
+    data.sistemas.forEach(s => {
+      if (s.clientes_atendidos === undefined) s.clientes_atendidos = null;
+      if (s.vazao === undefined) s.vazao = null;
+      if (s.dosagem_contrato === undefined) s.dosagem_contrato = null;
+      if (s.observacoes === undefined) s.observacoes = null;
     });
     return data;
   }

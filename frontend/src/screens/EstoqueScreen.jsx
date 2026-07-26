@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PeriodoBadge from '../components/PeriodoBadge.jsx';
+import { mesAtualISO, nomeMes, buscarSemanas } from '../utils/periodo.js';
 
 function fmt(n) {
   return Number(n).toLocaleString('pt-BR');
@@ -8,14 +9,24 @@ function fmt(n) {
 export default function EstoqueScreen() {
   const [area, setArea] = useState('CCN');
   const [subaba, setSubaba] = useState('bombonas'); // bombonas | tanque-area | bau
+  const [mes, setMes] = useState(mesAtualISO());
+  const [semanas, setSemanas] = useState([]);
+  const [semanaEscolhida, setSemanaEscolhida] = useState(null); // null = estoque atual
   const [itens, setItens] = useState([]);
   const [itensBau, setItensBau] = useState([]);
   const [busca, setBusca] = useState('');
   const [soAlerta, setSoAlerta] = useState(false);
+  const [expandido, setExpandido] = useState({});
 
   useEffect(() => {
-    fetch(`/api/estoque?area=${area}`).then(r => r.json()).then(setItens);
-  }, [area]);
+    buscarSemanas(mes).then(data => setSemanas(data.semanas));
+  }, [mes]);
+
+  useEffect(() => {
+    const query = new URLSearchParams({ area });
+    if (semanaEscolhida) query.set('ate', semanaEscolhida.fim);
+    fetch(`/api/estoque?${query}`).then(r => r.json()).then(setItens);
+  }, [area, semanaEscolhida]);
 
   useEffect(() => {
     if (subaba !== 'bau') return;
@@ -29,10 +40,18 @@ export default function EstoqueScreen() {
     return bate && (!soAlerta || alerta);
   });
 
-  const bauFiltrado = itensBau.filter(i => i.area === area);
-
   const totalEstoque = itens.reduce((a, i) => a + i.estoque_kg, 0);
   const totalAlerta = itens.filter(i => i.estoque_kg < i.estoque_minimo_kg).length;
+
+  const porSistema = itens.reduce((acc, i) => {
+    if (!acc[i.sistema]) acc[i.sistema] = [];
+    acc[i.sistema].push(i);
+    return acc;
+  }, {});
+
+  function toggleExpandido(sistema) {
+    setExpandido(prev => ({ ...prev, [sistema]: !prev[sistema] }));
+  }
 
   return (
     <div>
@@ -44,10 +63,33 @@ export default function EstoqueScreen() {
       </div>
 
       {subaba !== 'bau' && (
-        <div className="tabs">
-          <button className={area === 'CCN' ? 'active' : ''} onClick={() => setArea('CCN')}>CCN</button>
-          <button className={area === 'CCS' ? 'active' : ''} onClick={() => setArea('CCS')}>CCS</button>
-        </div>
+        <>
+          <div className="tabs">
+            <button className={area === 'CCN' ? 'active' : ''} onClick={() => setArea('CCN')}>CCN</button>
+            <button className={area === 'CCS' ? 'active' : ''} onClick={() => setArea('CCS')}>CCS</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 13 }}>Mês</label>
+              <input type="month" value={mes} onChange={e => setMes(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13 }}>Semana</label>
+              <select
+                value={semanaEscolhida?.semana ?? ''}
+                onChange={e => setSemanaEscolhida(semanas.find(s => s.semana === Number(e.target.value)) || null)}
+              >
+                <option value="">Atual (tempo real)</option>
+                {semanas.map(s => (
+                  <option key={s.semana} value={s.semana}>
+                    Semana {s.semana} (até {new Date(s.fim + 'T00:00:00').toLocaleDateString('pt-BR')})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
       )}
 
       {subaba === 'bombonas' && (
@@ -87,25 +129,41 @@ export default function EstoqueScreen() {
       )}
 
       {subaba === 'tanque-area' && (
-        <div className="card" style={{ padding: 0 }}>
-          <p style={{ fontSize: 12, color: '#6b7280', padding: '10px 12px 0' }}>
-            Estoque de área = volume do tanque (convertido em kg pela densidade) + estoque de bombonas/IBC
+        <div>
+          <p style={{ fontSize: 12, color: '#6b7280' }}>
+            Estoque de área = volume do tanque (convertido em kg pela densidade) + estoque de bombonas/IBC.
+            Clique em um sistema para expandir.
           </p>
-          {itens.map(i => {
-            const volumeKg = i.volume_final_l != null && i.densidade ? i.volume_final_l * i.densidade : 0;
-            const totalArea = Math.round((volumeKg + i.estoque_kg) * 100) / 100;
+          {Object.entries(porSistema).map(([sistemaNome, lista]) => {
+            const aberto = !!expandido[sistemaNome];
+            const totalSistema = lista.reduce((acc, i) => {
+              const volumeKg = i.volume_final_l != null && i.densidade ? i.volume_final_l * i.densidade : 0;
+              return acc + volumeKg + i.estoque_kg;
+            }, 0);
             return (
-              <div key={i.id} className="list-item">
-                <div>
-                  <div style={{ fontWeight: 500 }}>{i.produto}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{i.sistema}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 600 }}>{fmt(totalArea)} kg</div>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>
-                    tanque {fmt(volumeKg.toFixed(1))} kg + bombonas {fmt(i.estoque_kg)} kg
-                  </div>
-                </div>
+              <div className="card" key={sistemaNome} style={{ padding: 0 }}>
+                <button
+                  onClick={() => toggleExpandido(sistemaNome)}
+                  style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: 14, display: 'flex', justifyContent: 'space-between', margin: 0 }}
+                >
+                  <span style={{ fontWeight: 600 }}>{aberto ? '▾' : '▸'} {sistemaNome}</span>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>{fmt(totalSistema.toFixed(1))} kg total</span>
+                </button>
+                {aberto && lista.map(i => {
+                  const volumeKg = i.volume_final_l != null && i.densidade ? i.volume_final_l * i.densidade : 0;
+                  const totalArea = Math.round((volumeKg + i.estoque_kg) * 100) / 100;
+                  return (
+                    <div key={i.id} className="list-item">
+                      <div style={{ fontWeight: 500 }}>{i.produto}</div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 600 }}>{fmt(totalArea)} kg</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>
+                          tanque {fmt(volumeKg.toFixed(1))} kg + bombonas {fmt(i.estoque_kg)} kg
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -113,18 +171,19 @@ export default function EstoqueScreen() {
       )}
 
       {subaba === 'bau' && (
-        <ContagemBau area={area} itensBau={itensBau} onSalvo={() => fetch('/api/estoque-bau').then(r => r.json()).then(setItensBau)} />
+        <ContagemBau itensBau={itensBau} onSalvo={() => fetch('/api/estoque-bau').then(r => r.json()).then(setItensBau)} />
       )}
     </div>
   );
 }
 
-function ContagemBau({ area, itensBau, onSalvo }) {
+function ContagemBau({ itensBau, onSalvo }) {
   const [valores, setValores] = useState({});
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
+  const [busca, setBusca] = useState('');
 
-  const bauFiltrado = itensBau.filter(i => i.area === area);
+  const filtrados = itensBau.filter(i => i.nome.toLowerCase().includes(busca.toLowerCase()));
 
   function atualizar(id, campo, valor) {
     setValores(prev => ({ ...prev, [id]: { ...prev[id], [campo]: valor } }));
@@ -133,7 +192,7 @@ function ContagemBau({ area, itensBau, onSalvo }) {
   async function salvarContagem() {
     setSalvando(true);
     setMensagem('');
-    const itens = Object.entries(valores).map(([produto_id, v]) => ({ produto_id: Number(produto_id), ...v }));
+    const itens = Object.entries(valores).map(([produto_bau_id, v]) => ({ produto_bau_id: Number(produto_bau_id), ...v }));
     if (itens.length === 0) { setMensagem('Preencha ao menos um item antes de salvar.'); setSalvando(false); return; }
     try {
       const res = await fetch('/api/estoque-bau', {
@@ -154,28 +213,38 @@ function ContagemBau({ area, itensBau, onSalvo }) {
     setSalvando(false);
   }
 
+  const totalAlerta = itensBau.filter(i => i.estoque_kg < i.estoque_minimo_kg).length;
+
   return (
-    <div className="card">
-      <p style={{ fontSize: 12, color: '#6b7280', marginTop: 0 }}>
-        Contagem mensal (dia 15) — informe o estoque atual e o mínimo desejado por produto
+    <div>
+      <p style={{ fontSize: 12, color: '#6b7280' }}>
+        Contagem mensal (dia 15) — estoque central que abastece todas as áreas.
       </p>
-      {bauFiltrado.map(i => (
-        <div key={i.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8, alignItems: 'end', marginBottom: 10 }}>
-          <div style={{ fontSize: 13 }}>{i.produto}<div style={{ fontSize: 11, color: '#6b7280' }}>{i.sistema}</div></div>
-          <div>
-            <label style={{ fontSize: 11 }}>Estoque (kg)</label>
-            <input type="number" placeholder={i.estoque_bau_kg} onChange={e => atualizar(i.id, 'estoque_bau_kg', e.target.value)} />
+      <div className="grid3">
+        <div className="stat"><div className="label">Produtos</div><div className="value">{itensBau.length}</div></div>
+        <div className="stat"><div className="label">Nível baixo</div><div className="value warning">{totalAlerta}</div></div>
+        <div className="stat"><div className="label">&nbsp;</div><div className="value">&nbsp;</div></div>
+      </div>
+      <input placeholder="Buscar produto" value={busca} onChange={e => setBusca(e.target.value)} />
+      <div className="card">
+        {filtrados.map(i => (
+          <div key={i.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8, alignItems: 'end', marginBottom: 10 }}>
+            <div style={{ fontSize: 13 }}>{i.nome}</div>
+            <div>
+              <label style={{ fontSize: 11 }}>Estoque (kg)</label>
+              <input type="number" placeholder={i.estoque_kg} onChange={e => atualizar(i.id, 'estoque_kg', e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11 }}>Mínimo (kg)</label>
+              <input type="number" placeholder={i.estoque_minimo_kg} onChange={e => atualizar(i.id, 'estoque_minimo_kg', e.target.value)} />
+            </div>
           </div>
-          <div>
-            <label style={{ fontSize: 11 }}>Mínimo (kg)</label>
-            <input type="number" placeholder={i.estoque_minimo_bau_kg} onChange={e => atualizar(i.id, 'estoque_minimo_bau_kg', e.target.value)} />
-          </div>
-        </div>
-      ))}
-      <button className="primary" disabled={salvando} onClick={salvarContagem}>
-        {salvando ? 'Salvando...' : 'Salvar contagem do BAÚ'}
-      </button>
-      {mensagem && <p style={{ fontSize: 13, marginTop: 8 }}>{mensagem}</p>}
+        ))}
+        <button className="primary" disabled={salvando} onClick={salvarContagem}>
+          {salvando ? 'Salvando...' : 'Salvar contagem do BAÚ'}
+        </button>
+        {mensagem && <p style={{ fontSize: 13, marginTop: 8 }}>{mensagem}</p>}
+      </div>
     </div>
   );
 }

@@ -23,6 +23,21 @@ export default async (req) => {
     return json({ id: novo.id }, 201);
   }
 
+  if (req.method === 'PUT') {
+    const sistemaId = Number(url.searchParams.get('sistema_id'));
+    const sistema = db.sistemas.find(s => s.id === sistemaId);
+    if (!sistema) return json({ erro: 'Sistema não encontrado' }, 404);
+
+    const body = await req.json();
+    const campos = ['nome', 'subsistema', 'area', 'clientes_atendidos', 'vazao', 'dosagem_contrato', 'observacoes'];
+    campos.forEach(campo => {
+      if (body[campo] !== undefined) sistema[campo] = body[campo];
+    });
+
+    await saveDb(db);
+    return json({ ok: true, sistema });
+  }
+
   return json({ erro: 'Método não suportado' }, 405);
 };
 
